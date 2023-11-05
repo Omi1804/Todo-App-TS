@@ -9,7 +9,6 @@ interface CreateTodoInput {
 }
 
 router.post("/todos", authenticateJwt, (req, res) => {
-  // const { title, description } = req.body;
   const input: CreateTodoInput = req.body;
   const { userId } = req.headers;
   const done = false;

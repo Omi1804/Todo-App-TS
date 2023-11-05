@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { authState } from "../store/authState.js";
 import { useRecoilValue } from "recoil";
+import { z } from "zod";
 
 interface Todo {
   _id: string;
@@ -15,6 +16,26 @@ const TodoList = () => {
   const [description, setDescription] = useState("");
   const authStateValue = useRecoilValue(authState);
 
+  //applying verification through zod
+  const TodoDetails = z.object({
+    title: z
+      .string()
+      .min(1)
+      .refine((i) => i.length <= 10, {
+        message: "Title can not be more than 10 characters",
+      }),
+    description: z
+      .string()
+      .min(1)
+      .refine((i) => i.length <= 50, {
+        message: "Description can not be more than 50 characters",
+      }),
+  });
+
+  const validatingTodos = (input: unknown) => {
+    return TodoDetails.parse(input);
+  };
+
   useEffect(() => {
     const getTodos = async () => {
       const response = await fetch("http://localhost:3000/todo/todos", {
@@ -28,16 +49,24 @@ const TodoList = () => {
   }, []);
 
   const addTodo = async () => {
-    const response = await fetch("http://localhost:3000/todo/todos", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ title, description }),
-    });
-    const data = await response.json();
-    setTodos([...todos, data]);
+    const inputTodo = { title, description };
+
+    try {
+      if (validatingTodos(inputTodo)) {
+        const response = await fetch("http://localhost:3000/todo/todos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ title, description }),
+        });
+        const data = await response.json();
+        setTodos([...todos, data]);
+      }
+    } catch (err: unknown) {
+      console.log(err);
+    }
   };
 
   const markDone = async (id: string) => {
