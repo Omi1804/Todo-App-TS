@@ -2,6 +2,8 @@ import jwt from "jsonwebtoken";
 import express from "express";
 import { authenticateJwt, SECRET } from "../middleware/";
 import { User } from "../db";
+import { z } from "zod";
+import { UserDetails } from "@omi18/common";
 const router = express.Router();
 
 interface Body {
@@ -10,18 +12,23 @@ interface Body {
 }
 
 router.post("/signup", async (req, res) => {
-  const input: Body = req.body;
-  const user = await User.findOne({ username: input.username });
-  if (user) {
-    res.status(403).json({ message: "User already exists" });
+  const parsedResponse = UserDetails.safeParse(req.body);
+  if (parsedResponse.success) {
+    const input: Body = req.body;
+    const user = await User.findOne({ username: input.username });
+    if (user) {
+      res.status(403).json({ message: "User already exists" });
+    } else {
+      const newUser = new User({
+        username: input.username,
+        password: input.password,
+      });
+      await newUser.save();
+      const token = jwt.sign({ id: newUser._id }, SECRET, { expiresIn: "1h" });
+      res.json({ message: "User created successfully", token });
+    }
   } else {
-    const newUser = new User({
-      username: input.username,
-      password: input.password,
-    });
-    await newUser.save();
-    const token = jwt.sign({ id: newUser._id }, SECRET, { expiresIn: "1h" });
-    res.json({ message: "User created successfully", token });
+    res.status(411).json({ message: "User creadentials are invalid" });
   }
 });
 
